@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Search, Calendar, MapPin, Package } from 'lucide-react';
+import { Search, Calendar, MapPin, Package, Image } from 'lucide-react';
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -129,12 +129,22 @@ const LostItems = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {item.image_url && (
+                  {item.image_url ? (
                     <img
                       src={item.image_url}
                       alt={item.name}
                       className="w-full h-48 object-cover rounded-md"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
                     />
+                  ) : (
+                    <div className="w-full h-48 bg-gray-100 rounded-md flex items-center justify-center">
+                      <div className="text-center text-gray-400">
+                        <Image className="h-8 w-8 mx-auto mb-2" />
+                        <p className="text-sm">No image available</p>
+                      </div>
+                    </div>
                   )}
                   
                   <p className="text-gray-600 text-sm">{item.description}</p>

@@ -7,10 +7,11 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, MapPin, Calendar } from 'lucide-react';
+import { MapPin, Calendar } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
+import ImageUpload from '@/components/ImageUpload';
 
 type ItemCategory = Database['public']['Enums']['item_category'];
 
@@ -62,6 +63,19 @@ const ReportLost = () => {
     setSubmitting(true);
 
     try {
+      let imageUrl = null;
+
+      // Handle image upload if present
+      if (formData.image) {
+        // For now, we'll create a data URL for the image
+        // In a real app, you'd upload to storage and get a URL
+        const reader = new FileReader();
+        imageUrl = await new Promise<string>((resolve) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(formData.image!);
+        });
+      }
+
       const { error } = await supabase
         .from('lost_items')
         .insert({
@@ -72,7 +86,7 @@ const ReportLost = () => {
           date_lost: formData.date,
           location: formData.location,
           contact_info: formData.contactInfo,
-          // image_url will be handled later when we add file upload
+          image_url: imageUrl,
         });
 
       if (error) throw error;
@@ -104,13 +118,6 @@ const ReportLost = () => {
       });
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setFormData(prev => ({ ...prev, image: file }));
     }
   };
 
@@ -223,24 +230,10 @@ const ReportLost = () => {
                 />
               </div>
 
-              <div>
-                <Label htmlFor="image">Photo (Optional)</Label>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center">
-                  <input
-                    id="image"
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                  <label htmlFor="image" className="cursor-pointer">
-                    <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                    <p className="text-sm text-gray-600">
-                      {formData.image ? formData.image.name : 'Click to upload an image'}
-                    </p>
-                  </label>
-                </div>
-              </div>
+              <ImageUpload
+                onImageSelect={(file) => setFormData(prev => ({ ...prev, image: file }))}
+                selectedImage={formData.image}
+              />
 
               <Button 
                 type="submit" 
