@@ -6,40 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, Calendar, MapPin, Package } from 'lucide-react';
 import { format } from 'date-fns';
-
-// Mock data - in a real app this would come from a backend
-const mockFoundItems = [
-  {
-    id: 1,
-    name: "Red Wallet",
-    description: "Leather wallet with university ID visible inside",
-    category: "Accessories",
-    date: new Date('2024-01-16'),
-    location: "Cafeteria",
-    imageUrl: "/placeholder.svg?height=200&width=300",
-    contactInfo: "security@university.edu"
-  },
-  {
-    id: 2,
-    name: "Textbook - Chemistry",
-    description: "Organic Chemistry textbook with highlighted pages",
-    category: "Books",
-    date: new Date('2024-01-15'),
-    location: "Science Building - Room 101",
-    imageUrl: "/placeholder.svg?height=200&width=300",
-    contactInfo: "lost.found@university.edu"
-  },
-  {
-    id: 3,
-    name: "Black Umbrella",
-    description: "Compact black umbrella with wooden handle",
-    category: "Other",
-    date: new Date('2024-01-14'),
-    location: "Main Entrance",
-    imageUrl: "/placeholder.svg?height=200&width=300",
-    contactInfo: "admin@university.edu"
-  }
-];
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const categories = ["All", "Electronics", "Bags", "Accessories", "Books", "Clothing", "Other"];
 
@@ -48,8 +16,22 @@ const FoundItems = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortBy, setSortBy] = useState('date');
 
+  const { data: foundItems = [], isLoading } = useQuery({
+    queryKey: ['found-items'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('found_items')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const filteredItems = useMemo(() => {
-    let filtered = mockFoundItems.filter(item => {
+    let filtered = foundItems.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            item.location.toLowerCase().includes(searchTerm.toLowerCase());
@@ -60,7 +42,7 @@ const FoundItems = () => {
     // Sort items
     filtered.sort((a, b) => {
       if (sortBy === 'date') {
-        return b.date.getTime() - a.date.getTime();
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       } else if (sortBy === 'name') {
         return a.name.localeCompare(b.name);
       }
@@ -68,7 +50,18 @@ const FoundItems = () => {
     });
 
     return filtered;
-  }, [searchTerm, selectedCategory, sortBy]);
+  }, [foundItems, searchTerm, selectedCategory, sortBy]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-4 flex items-center justify-center">
+        <div className="text-center">
+          <Package className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-600">Loading found items...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 to-emerald-100 p-4">
@@ -138,18 +131,20 @@ const FoundItems = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    className="w-full h-48 object-cover rounded-md"
-                  />
+                  {item.image_url && (
+                    <img
+                      src={item.image_url}
+                      alt={item.name}
+                      className="w-full h-48 object-cover rounded-md"
+                    />
+                  )}
                   
                   <p className="text-gray-600 text-sm">{item.description}</p>
                   
                   <div className="space-y-2">
                     <div className="flex items-center text-sm text-gray-500">
                       <Calendar className="h-4 w-4 mr-2" />
-                      Found on {format(item.date, 'MMM dd, yyyy')}
+                      Found on {format(new Date(item.date_found), 'MMM dd, yyyy')}
                     </div>
                     
                     <div className="flex items-center text-sm text-gray-500">

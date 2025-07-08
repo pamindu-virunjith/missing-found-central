@@ -6,40 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Search, Calendar, MapPin, Package } from 'lucide-react';
 import { format } from 'date-fns';
-
-// Mock data - in a real app this would come from a backend
-const mockLostItems = [
-  {
-    id: 1,
-    name: "iPhone 13 Pro",
-    description: "Black iPhone 13 Pro with cracked screen protector",
-    category: "Electronics",
-    date: new Date('2024-01-15'),
-    location: "Library - 2nd Floor",
-    imageUrl: "/placeholder.svg?height=200&width=300",
-    contactInfo: "john.doe@university.edu"
-  },
-  {
-    id: 2,
-    name: "Blue Backpack",
-    description: "Navy blue Jansport backpack with laptop compartment",
-    category: "Bags",
-    date: new Date('2024-01-14'),
-    location: "Student Union",
-    imageUrl: "/placeholder.svg?height=200&width=300",
-    contactInfo: "jane.smith@university.edu"
-  },
-  {
-    id: 3,
-    name: "Silver Watch",
-    description: "Casio silver digital watch with metal band",
-    category: "Accessories",
-    date: new Date('2024-01-13'),
-    location: "Gym",
-    imageUrl: "/placeholder.svg?height=200&width=300",
-    contactInfo: "mike.wilson@university.edu"
-  }
-];
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
 
 const categories = ["All", "Electronics", "Bags", "Accessories", "Books", "Clothing", "Other"];
 
@@ -48,8 +16,22 @@ const LostItems = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortBy, setSortBy] = useState('date');
 
+  const { data: lostItems = [], isLoading } = useQuery({
+    queryKey: ['lost-items'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('lost_items')
+        .select('*')
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data;
+    }
+  });
+
   const filteredItems = useMemo(() => {
-    let filtered = mockLostItems.filter(item => {
+    let filtered = lostItems.filter(item => {
       const matchesSearch = item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            item.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
                            item.location.toLowerCase().includes(searchTerm.toLowerCase());
@@ -60,7 +42,7 @@ const LostItems = () => {
     // Sort items
     filtered.sort((a, b) => {
       if (sortBy === 'date') {
-        return b.date.getTime() - a.date.getTime();
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
       } else if (sortBy === 'name') {
         return a.name.localeCompare(b.name);
       }
@@ -68,7 +50,18 @@ const LostItems = () => {
     });
 
     return filtered;
-  }, [searchTerm, selectedCategory, sortBy]);
+  }, [lostItems, searchTerm, selectedCategory, sortBy]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 flex items-center justify-center">
+        <div className="text-center">
+          <Package className="h-12 w-12 text-gray-400 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-600">Loading lost items...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
@@ -136,18 +129,20 @@ const LostItems = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <img
-                    src={item.imageUrl}
-                    alt={item.name}
-                    className="w-full h-48 object-cover rounded-md"
-                  />
+                  {item.image_url && (
+                    <img
+                      src={item.image_url}
+                      alt={item.name}
+                      className="w-full h-48 object-cover rounded-md"
+                    />
+                  )}
                   
                   <p className="text-gray-600 text-sm">{item.description}</p>
                   
                   <div className="space-y-2">
                     <div className="flex items-center text-sm text-gray-500">
                       <Calendar className="h-4 w-4 mr-2" />
-                      Lost on {format(item.date, 'MMM dd, yyyy')}
+                      Lost on {format(new Date(item.date_lost), 'MMM dd, yyyy')}
                     </div>
                     
                     <div className="flex items-center text-sm text-gray-500">

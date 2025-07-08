@@ -2,11 +2,13 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Search, Plus, Eye } from 'lucide-react';
+import { Menu, X, Search, Plus, Eye, LogIn, LogOut, User } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Navigation = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
+  const { user, signOut } = useAuth();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -14,9 +16,24 @@ const Navigation = () => {
     { path: '/', label: 'Home', icon: Search },
     { path: '/lost-items', label: 'Lost Items', icon: Eye },
     { path: '/found-items', label: 'Found Items', icon: Eye },
+  ];
+
+  const authItems = user ? [
     { path: '/report-lost', label: 'Report Lost', icon: Plus },
     { path: '/report-found', label: 'Report Found', icon: Plus },
-  ];
+  ] : [];
+
+  const allNavItems = [...navItems, ...authItems];
+
+  const handleSignOut = async () => {
+    await signOut();
+    setIsMenuOpen(false);
+  };
+
+  // Don't show navigation on auth page
+  if (location.pathname === '/auth') {
+    return null;
+  }
 
   return (
     <nav className="bg-white shadow-lg sticky top-0 z-50">
@@ -30,7 +47,7 @@ const Navigation = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-1">
-            {navItems.map(({ path, label, icon: Icon }) => (
+            {allNavItems.map(({ path, label, icon: Icon }) => (
               <Link
                 key={path}
                 to={path}
@@ -44,6 +61,34 @@ const Navigation = () => {
                 <span>{label}</span>
               </Link>
             ))}
+            
+            {user ? (
+              <div className="flex items-center space-x-2 ml-4">
+                <div className="flex items-center space-x-1 px-3 py-2 text-sm text-gray-600">
+                  <User className="h-4 w-4" />
+                  <span className="hidden lg:inline">
+                    {user.user_metadata?.full_name || user.email}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSignOut}
+                  className="flex items-center space-x-1"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Sign Out</span>
+                </Button>
+              </div>
+            ) : (
+              <Link
+                to="/auth"
+                className="flex items-center space-x-1 px-3 py-2 rounded-md text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 ml-4"
+              >
+                <LogIn className="h-4 w-4" />
+                <span>Sign In</span>
+              </Link>
+            )}
           </div>
 
           {/* Mobile menu button */}
@@ -62,7 +107,7 @@ const Navigation = () => {
         {isMenuOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t">
-              {navItems.map(({ path, label, icon: Icon }) => (
+              {allNavItems.map(({ path, label, icon: Icon }) => (
                 <Link
                   key={path}
                   to={path}
@@ -77,6 +122,31 @@ const Navigation = () => {
                   <span>{label}</span>
                 </Link>
               ))}
+              
+              {user ? (
+                <div className="pt-2 border-t">
+                  <div className="flex items-center space-x-2 px-3 py-2 text-sm text-gray-600">
+                    <User className="h-4 w-4" />
+                    <span>{user.user_metadata?.full_name || user.email}</span>
+                  </div>
+                  <button
+                    onClick={handleSignOut}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 w-full text-left"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="flex items-center space-x-2 px-3 py-2 rounded-md text-base font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <LogIn className="h-5 w-5" />
+                  <span>Sign In</span>
+                </Link>
+              )}
             </div>
           </div>
         )}

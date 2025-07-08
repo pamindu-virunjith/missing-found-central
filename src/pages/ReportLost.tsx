@@ -1,5 +1,6 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -7,11 +8,16 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Upload, MapPin, Calendar } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
 
 const categories = ["Electronics", "Bags", "Accessories", "Books", "Clothing", "Other"];
 
 const ReportLost = () => {
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading } = useAuth();
+  const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -22,9 +28,24 @@ const ReportLost = () => {
     image: null as File | null
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!loading && !user) {
+      navigate('/auth');
+    }
+  }, [user, loading, navigate]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!user) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to report a lost item.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Validation
     if (!formData.name || !formData.description || !formData.category || !formData.date || !formData.location || !formData.contactInfo) {
       toast({
@@ -35,24 +56,52 @@ const ReportLost = () => {
       return;
     }
 
-    // Here you would normally send the data to your backend
-    console.log('Lost item report:', formData);
-    
-    toast({
-      title: "Item Reported",
-      description: "Your lost item has been reported successfully. We'll notify you if someone finds it!",
-    });
+    setSubmitting(true);
 
-    // Reset form
-    setFormData({
-      name: '',
-      description: '',
-      category: '',
-      date: '',
-      location: '',
-      contactInfo: '',
-      image: null
-    });
+    try {
+      const { error } = await supabase
+        .from('lost_items')
+        .insert({
+          user_id: user.id,
+          name: formData.name,
+          description: formData.description,
+          category: formData.category,
+          date_lost: formData.date,
+          location: formData.location,
+          contact_info: formData.contactInfo,
+          // image_url will be handled later when we add file upload
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Item Reported",
+        description: "Your lost item has been reported successfully. We'll notify you if someone finds it!",
+      });
+
+      // Reset form
+      setFormData({
+        name: '',
+        description: '',
+        category: '',
+        date: '',
+        location: '',
+        contactInfo: '',
+        image: null
+      });
+
+      // Redirect to lost items page
+      navigate('/lost-items');
+    } catch (error) {
+      console.error('Error reporting lost item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to report your lost item. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,6 +110,18 @@ const ReportLost = () => {
       setFormData(prev => ({ ...prev, image: file }));
     }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 p-4 flex items-center justify-center">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null; // Will redirect to auth
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-red-50 to-pink-100 p-4">
@@ -178,8 +239,12 @@ const ReportLost = () => {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full bg-red-600 hover:bg-red-700">
-                Report Lost Item
+              <Button 
+                type="submit" 
+                className="w-full bg-red-600 hover:bg-red-700"
+                disabled={submitting}
+              >
+                {submitting ? 'Reporting...' : 'Report Lost Item'}
               </Button>
             </form>
           </CardContent>
