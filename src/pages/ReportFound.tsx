@@ -10,8 +10,11 @@ import { useToast } from '@/hooks/use-toast';
 import { Upload, MapPin, Calendar, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 
-const categories = ["Electronics", "Bags", "Accessories", "Books", "Clothing", "Other"];
+type ItemCategory = Database['public']['Enums']['item_category'];
+
+const categories: ItemCategory[] = ["Electronics", "Bags", "Accessories", "Books", "Clothing", "Other"];
 
 const ReportFound = () => {
   const navigate = useNavigate();
@@ -21,7 +24,7 @@ const ReportFound = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    category: '',
+    category: '' as ItemCategory | '',
     date: '',
     location: '',
     contactInfo: '',
@@ -65,7 +68,7 @@ const ReportFound = () => {
           user_id: user.id,
           name: formData.name,
           description: formData.description,
-          category: formData.category,
+          category: formData.category as ItemCategory,
           date_found: formData.date,
           location: formData.location,
           contact_info: formData.contactInfo,
@@ -168,7 +171,7 @@ const ReportFound = () => {
                 <select
                   id="category"
                   value={formData.category}
-                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                  onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value as ItemCategory }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white"
                   required
                 >
